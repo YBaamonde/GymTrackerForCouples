@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#0f172a"/>
+  <title>Gym · Yago & Adri</title>
+  <style>
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    body{margin:0;background:#0f172a;color:#f1f5f9;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;overscroll-behavior:none;}
+    input[type=number]{-moz-appearance:textfield;}
+    input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+    ::-webkit-scrollbar{width:0;height:0;}
+    button:active{opacity:.75;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const{useState,useEffect,useMemo,useRef}=React;
+const USERS=["Yago","Adri"];
+const UC={Yago:"#38bdf8",Adri:"#f472b6"};
+const SK={R:"gtr_r4",S:"gtr_s4"};
+
+// ─── EXERCISE BUILDER ──────────────────────────────────────────────────────
+const ex=(id,name,muscles,tips,yS,yR,aS,aR,alt)=>({id,name,muscles,tips,Yago:{sets:yS,reps:yR},Adri:{sets:aS,reps:aR},...(alt?{alt}:{})});
+
+// ─── DEFAULT DATA (desde Excel) ────────────────────────────────────────────
+const DEFAULT_ROUTINES=[
+  {id:"rA",name:"RUTINA A",color:"#f97316",exercises:[
+    ex("rdl","Peso muerto rumano (RDL)","Isquiotibiales, glúteos, erectores espinales, core","De pie con barra o mancuernas frente a los muslos. Empuja la cadera hacia atrás bajando el peso por las piernas con rodillas ligeramente flexionadas y espalda neutra. Sube extendiendo la cadera y apretando los glúteos al final del movimiento.",4,"6-10",4,"6-10"),
+    ex("sq_frontal","Sentadilla frontal","Cuádriceps, glúteos, core, espalda alta","Barra sobre los deltoides con los codos apuntando al frente. Pies a la anchura de hombros. Desciende con el torso lo más erecto posible hasta paralelo o más. Empuja el suelo al subir.",4,"6-10",4,"6-10","Grupo 1"),
+    ex("goblet","Goblet squat","Cuádriceps, glúteos, core","Sujeta una mancuerna o kettlebell verticalmente frente al pecho. Pies algo más abiertos que los hombros con puntas hacia afuera. Desciende entre las piernas empujando las rodillas hacia afuera. Mantén el pecho alto.",4,"8-15",4,"8-15","Grupo 1"),
+    ex("press_banca","Press banca con barra","Pectoral mayor, tríceps, deltoide anterior","Tumbado, escápulas juntas y hundidas. La barra baja hasta rozar el pecho a la altura de los pezones. Codos a ~75° del cuerpo, no abiertos del todo. Empuja de forma controlada hacia arriba.",4,"6-10",4,"6-10","Grupo 2"),
+    ex("press_manc","Press con mancuernas","Pectoral mayor, tríceps, deltoide anterior","Igual que el press banca pero con mayor rango de movimiento. Baja las mancuernas hasta que los codos queden por debajo del banco. Más estabilización requerida que con barra.",4,"8-15",4,"8-15","Grupo 2"),
+    ex("remo_brazo","Remo a un brazo con mancuerna","Dorsal ancho, romboides, trapecio medio, bíceps","Apoya la rodilla y la mano del mismo lado en un banco. La mancuerna cuelga del brazo libre. Tira del codo hacia la cadera sin rotar el torso. El movimiento lo inicia el dorsal, no el bíceps.",3,"8-15",3,"8-15"),
+    ex("hip_thrust","Hip thrust","Glúteos, isquiotibiales, core","Hombros en el banco a la altura de los omóplatos. Barra sobre la cadera con almohadilla. Pies a la anchura de caderas. Empuja hacia arriba apretando los glúteos al máximo. Pelvis neutra en la posición alta, no arquees la lumbar.",3,"8-15",3,"8-15"),
+    ex("face_a","Face pulls","Deltoide posterior, trapecio medio/inferior, romboides","Polea alta con cuerda. Tira hacia la cara separando las manos al final del movimiento. Los codos deben quedar altos, a la altura de los hombros o por encima. Mueve los pulgares hacia atrás. Fundamental para la salud del hombro.",3,"15-20",3,"15-20"),
+    ex("dorsales_iso","Dorsales Isolateral","Dorsal ancho, redondo mayor, bíceps, romboides","Máquina de jalón o remo unilateral. Trabaja un brazo a la vez para corregir desequilibrios. Tira con el codo hacia la cadera sintiendo la contracción del dorsal. No uses el impulso del cuerpo.",3,"8-15",3,"8-15"),
+  ]},
+  {id:"rB",name:"RUTINA B",color:"#38bdf8",exercises:[
+    ex("sq_trasera","Sentadilla trasera (back squat)","Cuádriceps, glúteos, erectores espinales, core","Barra sobre los trapecios, no el cuello. Pies algo más anchos que los hombros, puntas hacia afuera. Empuja las rodillas en la dirección de los pies al bajar. Desciende hasta paralelo manteniendo el torso erecto.",4,"6-12",4,"6-12"),
+    ex("rdl_ligero","Peso muerto rumano ligero","Isquiotibiales, glúteos, erectores espinales","Como el RDL estándar pero con menos carga y más énfasis en el estiramiento de isquiotibiales. Controla la bajada 3-4 segundos. Ideal para sensibilizar el patrón de bisagra de cadera.",3,"8-12",3,"8-12","Grupo 3"),
+    ex("hip_hinge_maq","Hip hinge en máquina","Isquiotibiales, glúteos","Ajusta la máquina para que el eje de rotación coincida con tu cadera. Espalda neutra durante todo el movimiento. Útil para aprender el patrón de bisagra sin preocuparte por el equilibrio.",3,"10-15",3,"10-15","Grupo 3"),
+    ex("press_mil_manc","Press militar con mancuernas","Deltoide anterior y lateral, tríceps, trapecio","Sentado o de pie, mancuernas a la altura de los hombros con codos a 90°. Empuja hacia arriba y ligeramente hacia dentro. Baja controlado hasta que los codos queden a 90°. Evita arquear la zona lumbar.",3,"6-12",3,"6-12","Grupo 4"),
+    ex("press_mil_maq","Press militar en máquina","Deltoide anterior y lateral, tríceps","Ajusta el asiento para que las asas queden a la altura de los hombros. Empuja hacia arriba de forma controlada. La máquina guía el recorrido, ideal para aislar el deltoides sin preocuparte por el equilibrio.",3,"6-12",3,"6-12","Grupo 4"),
+    ex("jalon","Jalón al pecho","Dorsal ancho, bíceps, romboides, trapecio inferior","Agarre ancho, pecho ligeramente inclinado hacia atrás. Tira de la barra hacia el pecho iniciando el movimiento con las escápulas. Los codos apuntan hacia el suelo. Contrae el dorsal en la posición baja.",3,"8-15",3,"8-15"),
+    ex("remo_maq_b","Remo en máquina","Dorsal ancho, romboides, trapecio medio, bíceps","Torso erecto, apoyado en el pecho si la hay. Tira con los codos hacia atrás apretando las escápulas al final. Baja controlado dejando que los hombros roten hacia adelante en el estiramiento.",3,"8-15",3,"8-15","Grupo 5"),
+    ex("remo_barra","Remo con barra","Dorsal ancho, romboides, trapecio medio, erectores","Inclinado ~45°, espalda neutra. La barra sube hacia el ombligo. Codos cerca del cuerpo y hacia atrás. Aprieta las escápulas en la contracción. Controla la bajada.",3,"6-10",3,"6-10","Grupo 5"),
+    ex("peck_deck","Peck deck inversa","Deltoides posterior, romboides, trapecio medio","En la máquina de aperturas, sentado mirando hacia el acolchado. Abre los brazos lateralmente hacia atrás. Aprieta deltoides posterior y romboides al final. Baja muy controlado para maximizar el estiramiento.",3,"12-20",3,"12-20","Grupo 6"),
+    ex("face_b","Face pulls","Deltoides posterior, romboides, trapecio, manguito rotador","Polea alta con cuerda. Tira hacia la cara separando las manos al final. Los codos deben quedar altos, a la altura de los hombros o por encima. Esencial para el equilibrio muscular del hombro.",3,"12-20",3,"12-20","Grupo 6"),
+  ]},
+  {id:"rC",name:"RUTINA C",color:"#4ade80",exercises:[
+    ex("kb_swing","Kettlebell swing","Glúteos, isquiotibiales, erectores espinales, core","Pies a la anchura de hombros, kettlebell entre las piernas. Es una bisagra de cadera, no una sentadilla. Empuja la cadera explosivamente hacia adelante para balancear el KB hasta la altura de los hombros. Los brazos son completamente pasivos.",4,"10-20",4,"10-20","Grupo 7"),
+    ex("kb_rdl_exp","Kettlebell RDL explosivo","Glúteos, isquiotibiales, erectores espinales","Como el RDL estándar pero con mayor velocidad en la subida para desarrollar potencia muscular. Controla la bajada de forma excéntrica. Aprieta los glúteos en la posición alta.",4,"10-15",4,"10-15","Grupo 7"),
+    ex("zancadas","Zancadas caminando","Cuádriceps, glúteos, isquiotibiales, core","Paso largo hacia adelante, baja la rodilla trasera casi hasta el suelo. Torso erecto o ligeramente inclinado. Empuja con el talón delantero para dar el siguiente paso. Alterna las piernas avanzando.",3,"8-15",3,"8-15","Grupo 8"),
+    ex("bulgarian","Bulgarian split squat","Cuádriceps, glúteos, isquiotibiales, core","Pie trasero elevado en un banco. La mayoría del peso en el pie delantero. Baja la rodilla trasera hacia el suelo manteniendo el torso vertical o ligeramente inclinado. Empuja desde el talón delantero.",3,"8-12",3,"8-12","Grupo 8"),
+    ex("press_incl","Press inclinado con mancuernas","Pectoral superior, tríceps, deltoide anterior","Banco a 30-45°. Mancuernas a los lados del pecho, codos a ~75°. Empuja hacia arriba y ligeramente hacia dentro. Baja controlado hasta sentir el estiramiento del pectoral superior.",3,"6-12",3,"6-12","Grupo 9"),
+    ex("pushups","Push-ups","Pectoral, tríceps, deltoide anterior, core","Manos ligeramente más anchas que los hombros. Cuerpo en línea recta de cabeza a talones. Baja hasta que el pecho casi toque el suelo. Empuja con fuerza hacia arriba. No hundas las caderas ni el cuello.",3,"10-20",3,"10-20","Grupo 9"),
+    ex("remo_inv","Remo invertido (body row)","Dorsal ancho, romboides, bíceps, core","Barra fija a la altura de la cadera. Cuerpo en línea recta colgando de la barra con brazos extendidos. Tira del pecho hacia la barra manteniendo el cuerpo totalmente rígido. Excelente remo con peso corporal.",3,"8-15",3,"8-15","Grupo 10"),
+    ex("remo_maq_c","Remo en máquina","Dorsal ancho, romboides, trapecio medio, bíceps","Torso erecto, apoyado en el pecho si la hay. Tira con los codos hacia atrás apretando las escápulas al final. Baja controlado dejando que los hombros roten hacia adelante.",3,"8-15",3,"8-15","Grupo 10"),
+    ex("farmer","Farmer carry","Agarre, trapecio, core, antebrazos","Mancuernas o kettlebells en cada mano. Torso erecto, hombros hacia atrás y abajo. Camina con pasos cortos y controlados manteniendo el core activado. Evita que las mancuernas golpeen las piernas.",3,"30-60s",3,"30-60s"),
+  ]},
+];
+
+const DEFAULT_SESSIONS=[
+  {id:"s5",date:"2026-03-10T10:00:00.000Z",routineId:"rB",routineName:"RUTINA B",logs:{
+    Yago:[{exId:"sq_trasera",weight:40,reps:10,sets:4,done:true},{exId:"rdl_ligero",weight:25,reps:12,sets:3,done:true},{exId:"press_mil_maq",weight:25,reps:12,sets:3,done:true},{exId:"jalon",weight:45,reps:12,sets:3,done:true}],
+    Adri:[{exId:"sq_trasera",weight:20,reps:12,sets:4,done:true},{exId:"rdl_ligero",weight:10,reps:5,sets:3,done:true},{exId:"press_mil_maq",weight:10,reps:10,sets:3,done:true},{exId:"jalon",weight:17.5,reps:15,sets:3,done:true}],
+  }},
+  {id:"s4",date:"2026-02-24T10:00:00.000Z",routineId:"rA",routineName:"RUTINA A",logs:{
+    Yago:[{exId:"rdl",weight:35,reps:8,sets:4,done:true},{exId:"goblet",weight:20,reps:12,sets:4,done:true},{exId:"press_banca",weight:50,reps:7,sets:4,done:true},{exId:"hip_thrust",weight:25,reps:15,sets:3,done:true},{exId:"dorsales_iso",weight:30,reps:11,sets:3,done:true}],
+    Adri:[{exId:"rdl",weight:20,reps:8,sets:4,done:true},{exId:"goblet",weight:10,reps:12,sets:4,done:true},{exId:"press_banca",weight:20,reps:8,sets:4,done:true},{exId:"hip_thrust",weight:15,reps:12,sets:3,done:true},{exId:"dorsales_iso",weight:10,reps:15,sets:3,done:true}],
+  }},
+  {id:"s3",date:"2026-01-26T10:00:00.000Z",routineId:"rC",routineName:"RUTINA C",logs:{
+    Yago:[{exId:"kb_swing",weight:10,reps:20,sets:4,done:true},{exId:"zancadas",weight:12.5,reps:10,sets:3,done:true},{exId:"press_incl",weight:22.5,reps:8,sets:3,done:true},{exId:"remo_maq_c",weight:52.5,reps:12,sets:3,done:true}],
+    Adri:[{exId:"kb_swing",weight:6,reps:10,sets:4,done:true},{exId:"zancadas",weight:5,reps:10,sets:3,done:true},{exId:"press_incl",weight:7.5,reps:12,sets:3,done:true},{exId:"remo_maq_c",weight:25,reps:14,sets:3,done:true}],
+  }},
+  {id:"s2",date:"2026-01-20T10:00:00.000Z",routineId:"rB",routineName:"RUTINA B",logs:{
+    Yago:[{exId:"sq_trasera",weight:40,reps:12,sets:4,done:true},{exId:"rdl_ligero",weight:20,reps:12,sets:3,done:true},{exId:"press_mil_manc",weight:17.5,reps:12,sets:3,done:true},{exId:"jalon",weight:45,reps:10,sets:3,done:true},{exId:"face_b",weight:37.5,reps:20,sets:3,done:true}],
+    Adri:[{exId:"sq_trasera",weight:20,reps:12,sets:4,done:true},{exId:"rdl_ligero",weight:10,reps:12,sets:3,done:true},{exId:"press_mil_manc",weight:15,reps:12,sets:3,done:true},{exId:"jalon",weight:17.5,reps:15,sets:3,done:true},{exId:"face_b",weight:20,reps:15,sets:3,done:true}],
+  }},
+  {id:"s1",date:"2026-01-19T10:00:00.000Z",routineId:"rA",routineName:"RUTINA A",logs:{
+    Yago:[{exId:"rdl",weight:35,reps:8,sets:4,done:true},{exId:"goblet",weight:20,reps:12,sets:4,done:true},{exId:"press_banca",weight:40,reps:7,sets:4,done:true},{exId:"remo_brazo",weight:22.5,reps:15,sets:3,done:true},{exId:"hip_thrust",weight:25,reps:15,sets:3,done:true},{exId:"face_a",weight:32.5,reps:20,sets:3,done:true}],
+    Adri:[{exId:"rdl",weight:20,reps:8,sets:4,done:true},{exId:"goblet",weight:10,reps:12,sets:4,done:true},{exId:"press_banca",weight:20,reps:8,sets:4,done:true},{exId:"remo_brazo",weight:10,reps:12,sets:3,done:true},{exId:"hip_thrust",weight:15,reps:12,sets:3,done:true},{exId:"face_a",weight:17.5,reps:15,sets:3,done:true}],
+  }},
+];
+
+// ─── STORAGE ───────────────────────────────────────────────────────────────
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}};
+const persist=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}};
+const getLastWeight=(sessions,user,exId,routineId)=>{
+  const rel=[...sessions].filter(s=>s.routineId===routineId).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  for(const s of rel){const l=s.logs?.[user]?.find(l=>l.exId===exId);if(l&&l.weight!==''&&l.weight!=null&&!isNaN(parseFloat(l.weight)))return l.weight;}
+  return null;
+};
+
+// ─── SPARK CHART ───────────────────────────────────────────────────────────
+function SparkChart({data,color}){
+  if(!data||data.length<2)return<div style={{color:"#475569",fontSize:13,textAlign:"center",padding:"24px 0"}}>Necesitas al menos 2 sesiones registradas para ver la gráfica.</div>;
+  const vals=data.map(d=>parseFloat(d.weight));
+  const minV=Math.min(...vals),maxV=Math.max(...vals),range=maxV-minV||1;
+  const W=300,H=170,pad={t:28,r:12,b:42,l:46};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const pts=data.map((d,i)=>({x:pad.l+(i/Math.max(data.length-1,1))*cw,y:pad.t+ch-((parseFloat(d.weight)-minV)/range)*ch,d}));
+  const pathD=pts.map((p,i)=>`${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const areaD=pathD+` L${pts[pts.length-1].x.toFixed(1)},${(pad.t+ch).toFixed(1)} L${pts[0].x.toFixed(1)},${(pad.t+ch).toFixed(1)} Z`;
+  const gId=`g${color.replace(/[^a-z0-9]/gi,"")}`;
+  const yL=[minV,minV+range*0.5,maxV].map((v,i)=>({v:Math.round(v*10)/10,y:pad.t+ch*(1-i*0.5)}));
+  return(
+    <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",overflow:"visible"}}>
+      <defs><linearGradient id={gId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.25"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
+      {yL.map((l,i)=><g key={i}><line x1={pad.l} y1={l.y} x2={pad.l+cw} y2={l.y} stroke="#1e293b" strokeWidth="1"/><text x={pad.l-4} y={l.y+4} fill="#475569" fontSize="10" textAnchor="end">{l.v}</text></g>)}
+      <path d={areaD} fill={`url(#${gId})`}/>
+      <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {pts.map((p,i)=>{const isLast=i===pts.length-1,isFirst=i===0,show=isLast||isFirst||data.length<=5;return(
+        <g key={i}><circle cx={p.x} cy={p.y} r={isLast?5:3.5} fill={color}/>
+        {show&&<text x={p.x} y={p.y-10} fill={color} fontSize="11" textAnchor="middle" fontWeight="bold">{parseFloat(p.d.weight)}kg</text>}
+        <text x={p.x} y={pad.t+ch+20} fill="#475569" fontSize="9" textAnchor="middle">{new Date(p.d.date).toLocaleDateString("es",{day:"numeric",month:"short"})}</text></g>
+      );})}
+    </svg>
+  );
+}
+
+// ─── INFO MODAL ────────────────────────────────────────────────────────────
+function InfoModal({exercise,mode,onClose}){
+  if(!exercise)return null;
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}} onClick={onClose}>
+      <div style={{background:"#1e293b",borderRadius:"20px 20px 0 0",padding:"20px 20px 36px",width:"100%",maxWidth:480}} onClick={e=>e.stopPropagation()}>
+        <div style={{width:36,height:4,background:"#334155",borderRadius:2,margin:"0 auto 18px"}}/>
+        <div style={{fontWeight:700,fontSize:18,color:"#f1f5f9",marginBottom:12}}>{exercise.name}</div>
+        {exercise.alt&&<div style={{display:"inline-block",background:"#0f172a",borderRadius:20,padding:"4px 10px",fontSize:11,color:"#475569",marginBottom:14}}>Alternativa · {exercise.alt}</div>}
+        {exercise.muscles&&(
+          <div style={{background:"#0f172a",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+            <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:1.2,marginBottom:6}}>Músculos principales</div>
+            <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.6}}>{exercise.muscles}</div>
+          </div>
+        )}
+        {mode==="workout"&&exercise.tips&&(
+          <div style={{background:"#0f172a",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+            <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:1.2,marginBottom:6}}>Cómo realizarlo</div>
+            <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.7}}>{exercise.tips}</div>
+          </div>
+        )}
+        <button onClick={onClose} style={{width:"100%",background:"#334155",border:"none",borderRadius:12,padding:14,color:"#f1f5f9",fontSize:15,fontWeight:600,cursor:"pointer",marginTop:4}}>Cerrar</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── DATA MANAGER ──────────────────────────────────────────────────────────
+function DataManager({routines,sessions,onImport}){
+  const[msg,setMsg]=useState(null);
+  const toast=(m,ok=true)=>{setMsg({text:m,ok});setTimeout(()=>setMsg(null),3500);};
+  const fileRef=useRef();
+
+  const exportData=()=>{
+    const data=JSON.stringify({version:2,exported:new Date().toISOString(),routines,sessions},null,2);
+    const blob=new Blob([data],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=`gym-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();
+    URL.revokeObjectURL(url);
+    toast("Exportado correctamente");
+  };
+
+  const importData=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        if(!data.routines||!data.sessions)throw new Error();
+        onImport(data.routines,data.sessions);
+        toast("Datos importados correctamente");
+      }catch{toast("Error: archivo no válido",false);}
+    };
+    reader.readAsText(file);
+    e.target.value="";
+  };
+
+  return(
+    <div style={{marginTop:28,borderTop:"1px solid #1e293b",paddingTop:24,paddingBottom:8}}>
+      <p style={{fontSize:11,color:"#64748b",fontWeight:600,textTransform:"uppercase",letterSpacing:1.2,margin:"0 0 12px"}}>Gestión de datos</p>
+      {msg&&<div style={{background:"#1e293b",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:13,color:msg.ok?"#4ade80":"#f87171"}}>{msg.ok?"✓":"✗"} {msg.text}</div>}
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <button onClick={exportData} style={{flex:1,background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"13px 8px",color:"#94a3b8",fontSize:13,cursor:"pointer",fontWeight:500}}>⬆ Exportar JSON</button>
+        <label style={{flex:1,background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"13px 8px",color:"#94a3b8",fontSize:13,cursor:"pointer",textAlign:"center",fontWeight:500,display:"block"}}>
+          ⬇ Importar JSON<input ref={fileRef} type="file" accept=".json" onChange={importData} style={{display:"none"}}/>
+        </label>
+      </div>
+      <p style={{fontSize:11,color:"#334155",margin:"6px 0 0",lineHeight:1.5}}>Exporta regularmente como backup. Al importar se sobreescriben todos los datos actuales.</p>
+    </div>
+  );
+}
+
+// ─── BOTTOM NAV ────────────────────────────────────────────────────────────
+const NAV=[
+  {id:"home",label:"Hoy",d:"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z",fill:true},
+  {id:"workout",label:"Entreno",d:"M13 2L3 14h9l-1 8 10-12h-9l1-8z"},
+  {id:"routines",label:"Rutinas",d:"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"},
+  {id:"progress",label:"Progreso",d:"M3 3v18h18M7 16l4-4 4 4 4-8"},
+];
+function BottomNav({tab,setTab,hasWorkout}){
+  return(
+    <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:"#0f172a",borderTop:"1px solid #1e293b",display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+      {NAV.map(item=>{const active=tab===item.id;return(
+        <button key={item.id} onClick={()=>setTab(item.id)} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:active?"#38bdf8":"#475569",position:"relative"}}>
+          {item.id==="workout"&&hasWorkout&&<div style={{position:"absolute",top:8,right:"calc(50% - 18px)",width:7,height:7,borderRadius:"50%",background:"#4ade80",border:"1px solid #0f172a"}}/>}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill={item.fill&&active?"currentColor":"none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={item.d}/></svg>
+          <span style={{fontSize:10,fontWeight:active?700:400,letterSpacing:0.2}}>{item.label}</span>
+        </button>
+      );})}
+    </div>
+  );
+}
+
+// ─── CONFIRM DIALOG ────────────────────────────────────────────────────────
+function ConfirmDialog({message,onConfirm,onCancel}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:20}}>
+      <div style={{background:"#1e293b",borderRadius:16,padding:24,width:"100%",maxWidth:320,textAlign:"center"}}>
+        <div style={{fontSize:15,lineHeight:1.6,marginBottom:24,color:"#e2e8f0"}}>{message}</div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onCancel} style={{flex:1,background:"#334155",border:"none",borderRadius:10,padding:14,color:"#94a3b8",fontSize:14,fontWeight:600,cursor:"pointer"}}>Volver</button>
+          <button onClick={onConfirm} style={{flex:1,background:"#ef4444",border:"none",borderRadius:10,padding:14,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer"}}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── HOME TAB ──────────────────────────────────────────────────────────────
+function HomeTab({routines,sessions,onStart}){
+  const today=new Date();
+  const dateStr=today.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
+  const recent=sessions.slice(0,6);
+  return(
+    <div style={{padding:"28px 16px 16px"}}>
+      <p style={{color:"#475569",fontSize:13,margin:"0 0 2px",textTransform:"capitalize"}}>{dateStr}</p>
+      <h1 style={{fontSize:26,fontWeight:700,margin:"0 0 28px",color:"#f1f5f9",lineHeight:1.2}}>¡Hola,<br/><span style={{color:"#38bdf8"}}>Yago</span> y <span style={{color:"#f472b6"}}>Adri</span>! 💪</h1>
+      <p style={{color:"#64748b",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.2,marginBottom:12}}>¿Qué entrenamos hoy?</p>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:36}}>
+        {routines.map(r=>{
+          const lastS=sessions.find(s=>s.routineId===r.id);
+          const lastDate=lastS?new Date(lastS.date).toLocaleDateString("es-ES",{day:"numeric",month:"short"}):null;
+          return(
+            <button key={r.id} onClick={()=>onStart(r)} style={{background:"#1e293b",border:`1px solid ${r.color}22`,borderLeft:`4px solid ${r.color}`,borderRadius:14,padding:"18px 20px",textAlign:"left",cursor:"pointer",color:"#f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:16}}>{r.name}</div>
+                <div style={{color:"#475569",fontSize:12,marginTop:4}}>{r.exercises.length} ejercicios{lastDate?` · Último: ${lastDate}`:" · Sin historial"}</div>
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={r.color} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          );
+        })}
+      </div>
+      {recent.length>0&&<>
+        <p style={{color:"#64748b",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.2,marginBottom:12}}>Historial reciente</p>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {recent.map(s=>{
+            const r=routines.find(x=>x.id===s.routineId);
+            return(
+              <div key={s.id} style={{background:"#1e293b",borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderLeft:`3px solid ${r?.color??"#475569"}`}}>
+                <div>
+                  <div style={{fontWeight:600,fontSize:14}}>{s.routineName}</div>
+                  <div style={{color:"#475569",fontSize:12,marginTop:2}}>{new Date(s.date).toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})}</div>
+                </div>
+                <span style={{color:"#4ade80",fontSize:16,fontWeight:700}}>✓</span>
+              </div>
+            );
+          })}
+        </div>
+      </>}
+    </div>
+  );
+}
+
+// ─── WORKOUT TAB ───────────────────────────────────────────────────────────
+function WorkoutTab({workout,routines,setWorkout,onFinish,onCancel,onInfo}){
+  const[showConfirm,setShowConfirm]=useState(false);
+  const routine=routines.find(r=>r.id===workout?.routineId);
+  if(!workout||!routine)return(
+    <div style={{padding:"60px 16px",textAlign:"center"}}>
+      <div style={{fontSize:48,marginBottom:16}}>🏋️</div>
+      <p style={{color:"#94a3b8",fontSize:16,marginBottom:8}}>No hay entrenamiento activo.</p>
+      <p style={{color:"#475569",fontSize:13}}>Ve a la pestaña Hoy y selecciona una rutina.</p>
+    </div>
+  );
+
+  const updateLog=(user,exId,val)=>setWorkout(prev=>({...prev,logs:{...prev.logs,[user]:prev.logs[user].map(l=>l.exId===exId?{...l,weight:val}:l)}}));
+  const adjustWeight=(user,exId,delta)=>setWorkout(prev=>{
+    const log=prev.logs[user].find(l=>l.exId===exId);
+    const cur=parseFloat(log?.weight)||0;
+    const nv=Math.round(Math.max(0,cur+delta)*10)/10;
+    return{...prev,logs:{...prev.logs,[user]:prev.logs[user].map(l=>l.exId===exId?{...l,weight:nv}:l)}};
+  });
+  const toggleDone=exId=>setWorkout(prev=>{
+    const newLogs={...prev.logs};
+    const isDone=newLogs[USERS[0]].find(l=>l.exId===exId)?.done;
+    USERS.forEach(u=>{newLogs[u]=newLogs[u].map(l=>l.exId===exId?{...l,done:!isDone}:l);});
+    return{...prev,logs:newLogs};
+  });
+
+  const doneCount=routine.exercises.filter(ex=>workout.logs.Yago?.find(l=>l.exId===ex.id)?.done).length;
+  const anyDone=doneCount>0;
+  const allDone=doneCount===routine.exercises.length;
+
+  return(
+    <>
+      {showConfirm&&<ConfirmDialog message="¿Cancelar el entrenamiento? Se perderán los datos no guardados." onConfirm={()=>{setShowConfirm(false);onCancel();}} onCancel={()=>setShowConfirm(false)}/>}
+      <div style={{padding:"16px 16px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,paddingTop:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:4,height:36,borderRadius:2,background:workout.routineColor,flexShrink:0}}/>
+            <div>
+              <div style={{fontSize:11,color:"#475569",textTransform:"uppercase",letterSpacing:1}}>Entrenando ahora</div>
+              <div style={{fontSize:19,fontWeight:700,color:"#f1f5f9"}}>{workout.routineName}</div>
+            </div>
+          </div>
+          <button onClick={()=>setShowConfirm(true)} style={{background:"none",border:"1px solid #1e293b",borderRadius:8,padding:"7px 12px",color:"#475569",fontSize:12,cursor:"pointer",flexShrink:0}}>✕ Cancelar</button>
+        </div>
+        <div style={{background:"#1e293b",borderRadius:6,height:5,marginBottom:8,overflow:"hidden"}}>
+          <div style={{background:workout.routineColor,height:"100%",width:`${(doneCount/routine.exercises.length)*100}%`,transition:"width 0.4s",borderRadius:6}}/>
+        </div>
+        <p style={{color:"#475569",fontSize:12,textAlign:"center",marginBottom:18}}>{doneCount}/{routine.exercises.length} completados</p>
+
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {routine.exercises.map(ex=>{
+            const yLog=workout.logs.Yago?.find(l=>l.exId===ex.id);
+            const aLog=workout.logs.Adri?.find(l=>l.exId===ex.id);
+            const done=yLog?.done;
+            return(
+              <div key={ex.id} style={{background:"#1e293b",borderRadius:14,overflow:"hidden",border:`1px solid ${done?"#4ade8033":"#1e293b"}`,transition:"border 0.2s"}}>
+                <div style={{padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid #0f172a"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
+                    <span style={{fontWeight:700,fontSize:15,color:done?"#4ade80":"#f1f5f9",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{done?"✓ ":""}{ex.name}</span>
+                    {ex.alt&&<span style={{fontSize:10,color:"#334155",background:"#0f172a",borderRadius:10,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{ex.alt}</span>}
+                  </div>
+                  <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0,marginLeft:8}}>
+                    <button onClick={()=>onInfo(ex,"workout")} style={{background:"#0f172a",border:"1px solid #334155",borderRadius:8,width:32,height:32,color:"#475569",fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>ℹ</button>
+                    <button onClick={()=>toggleDone(ex.id)} style={{background:done?"#4ade8018":"#0f172a",border:`1px solid ${done?"#4ade8055":"#334155"}`,borderRadius:8,padding:"6px 12px",color:done?"#4ade80":"#64748b",fontSize:12,cursor:"pointer",fontWeight:700,whiteSpace:"nowrap"}}>
+                      {done?"Hecho":"Marcar"}
+                    </button>
+                  </div>
+                </div>
+                <div style={{padding:"14px 14px",display:"flex",gap:14}}>
+                  {[[USERS[0],yLog,UC.Yago],[USERS[1],aLog,UC.Adri]].map(([user,log,color])=>(
+                    <div key={user} style={{flex:1,minWidth:0}}>
+                      <div style={{color,fontSize:12,fontWeight:700,marginBottom:2,letterSpacing:0.5}}>{user}</div>
+                      <div style={{fontSize:12,color:"#475569",marginBottom:10}}>{log?.sets}×{log?.reps} reps</div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}>
+                        <button onPointerDown={e=>{e.preventDefault();adjustWeight(user,ex.id,-2.5);}} style={{background:"#0f172a",border:"1px solid #334155",borderRadius:9,width:40,height:44,color:"#f1f5f9",fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,userSelect:"none"}}>−</button>
+                        <input type="number" value={log?.weight??""} onChange={e=>updateLog(user,ex.id,e.target.value)} placeholder="kg" style={{flex:1,background:"#0f172a",border:`2px solid ${color}44`,borderRadius:9,color:"#f1f5f9",fontSize:18,fontWeight:700,textAlign:"center",padding:"10px 0",outline:"none",minWidth:0,width:"100%"}}/>
+                        <button onPointerDown={e=>{e.preventDefault();adjustWeight(user,ex.id,+2.5);}} style={{background:"#0f172a",border:"1px solid #334155",borderRadius:9,width:40,height:44,color:"#f1f5f9",fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,userSelect:"none"}}>+</button>
+                      </div>
+                      <div style={{textAlign:"center",fontSize:10,color:"#334155",marginTop:3}}>kg</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <button onClick={anyDone?onFinish:undefined} style={{marginTop:20,width:"100%",background:allDone?"#4ade80":anyDone?"#1e293b":"#0f172a",border:allDone?"none":anyDone?"1px solid #334155":"1px dashed #1e293b",borderRadius:14,padding:"18px",color:allDone?"#0f172a":anyDone?"#94a3b8":"#334155",fontSize:16,fontWeight:700,cursor:anyDone?"pointer":"default",transition:"all 0.3s"}}>
+          {allDone?"✓ Guardar entrenamiento":anyDone?`Finalizar sesión (${doneCount}/${routine.exercises.length} completados)`:"Marca al menos un ejercicio para finalizar"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── ROUTINES TAB ──────────────────────────────────────────────────────────
+function RoutinesTab({routines,updateRoutines,sessions,onImport,onInfo}){
+  const[expanded,setExpanded]=useState(null);
+  const[editEx,setEditEx]=useState(null);
+  const[addingTo,setAddingTo]=useState(null);
+  const[newExName,setNewExName]=useState("");
+  const[showNewRoutine,setShowNewRoutine]=useState(false);
+  const[newRoutineName,setNewRoutineName]=useState("");
+  const COLORS=["#f97316","#38bdf8","#4ade80","#a78bfa","#fb7185","#facc15","#34d399"];
+
+  const addRoutine=()=>{
+    if(!newRoutineName.trim())return;
+    const r={id:`r_${Date.now()}`,name:newRoutineName.trim().toUpperCase(),color:COLORS[routines.length%COLORS.length],exercises:[]};
+    updateRoutines([...routines,r]);setNewRoutineName("");setShowNewRoutine(false);
+  };
+  const addEx=rId=>{
+    if(!newExName.trim())return;
+    const e={id:`ex_${Date.now()}`,name:newExName.trim(),muscles:"",tips:"",Yago:{sets:3,reps:"8-12"},Adri:{sets:3,reps:"8-12"}};
+    updateRoutines(routines.map(r=>r.id===rId?{...r,exercises:[...r.exercises,e]}:r));
+    setNewExName("");setAddingTo(null);
+  };
+  const removeEx=(rId,eId)=>{updateRoutines(routines.map(r=>r.id===rId?{...r,exercises:r.exercises.filter(e=>e.id!==eId)}:r));setEditEx(null);};
+  const upField=(rId,eId,user,field,val)=>updateRoutines(routines.map(r=>r.id===rId?{...r,exercises:r.exercises.map(e=>e.id===eId?{...e,[user]:{...e[user],[field]:field==="sets"?(parseInt(val)||0):val}}:e)}:r));
+  const upExName=(rId,eId,name)=>updateRoutines(routines.map(r=>r.id===rId?{...r,exercises:r.exercises.map(e=>e.id===eId?{...e,name}:e)}:r));
+  const upMuscles=(rId,eId,muscles)=>updateRoutines(routines.map(r=>r.id===rId?{...r,exercises:r.exercises.map(e=>e.id===eId?{...e,muscles}:e)}:r));
+  const inp=(ov={})=>({background:"#0f172a",border:"1px solid #334155",borderRadius:8,color:"#f1f5f9",fontSize:13,padding:"8px 10px",outline:"none",boxSizing:"border-box",...ov});
+
+  return(
+    <div style={{padding:"24px 16px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <h1 style={{fontSize:22,fontWeight:700,margin:0,color:"#f1f5f9"}}>Rutinas</h1>
+        <button onClick={()=>setShowNewRoutine(!showNewRoutine)} style={{background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"8px 14px",color:"#94a3b8",fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Nueva</button>
+      </div>
+
+      {showNewRoutine&&(
+        <div style={{background:"#1e293b",borderRadius:12,padding:14,marginBottom:14,display:"flex",gap:8}}>
+          <input value={newRoutineName} onChange={e=>setNewRoutineName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addRoutine()} placeholder="Nombre (ej: HOMBRO)" autoFocus style={{...inp(),flex:1}}/>
+          <button onClick={addRoutine} style={{background:"#3b82f6",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontWeight:700,cursor:"pointer"}}>+</button>
+          <button onClick={()=>setShowNewRoutine(false)} style={{background:"#334155",border:"none",borderRadius:8,padding:"8px 12px",color:"#94a3b8",cursor:"pointer"}}>✕</button>
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {routines.map(r=>(
+          <div key={r.id} style={{background:"#1e293b",borderRadius:12,overflow:"hidden"}}>
+            <button onClick={()=>setExpanded(expanded===r.id?null:r.id)} style={{width:"100%",background:"none",border:"none",padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",color:"#f1f5f9"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:4,height:28,borderRadius:2,background:r.color}}/>
+                <div style={{textAlign:"left"}}>
+                  <div style={{fontWeight:700,fontSize:15}}>{r.name}</div>
+                  <div style={{color:"#475569",fontSize:12}}>{r.exercises.length} ejercicios</div>
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5"><path d={expanded===r.id?"M18 15l-6-6-6 6":"M6 9l6 6 6-6"}/></svg>
+            </button>
+
+            {expanded===r.id&&(
+              <div style={{borderTop:"1px solid #0f172a"}}>
+                {r.exercises.map(ex=>(
+                  <div key={ex.id} style={{padding:"12px 16px",borderBottom:"1px solid #0f172a88"}}>
+                    {editEx===ex.id?(
+                      <div>
+                        <input value={ex.name} onChange={e=>upExName(r.id,ex.id,e.target.value)} placeholder="Nombre del ejercicio" style={{...inp(),width:"100%",marginBottom:8,border:"1px solid #3b82f666"}}/>
+                        <input value={ex.muscles||""} onChange={e=>upMuscles(r.id,ex.id,e.target.value)} placeholder="Músculos (ej: Cuádriceps, glúteos)" style={{...inp(),width:"100%",marginBottom:10,fontSize:12}}/>
+                        <div style={{display:"flex",gap:10,marginBottom:10}}>
+                          {USERS.map(u=>(
+                            <div key={u} style={{flex:1}}>
+                              <div style={{fontSize:11,color:UC[u],fontWeight:700,marginBottom:5}}>{u}</div>
+                              <div style={{display:"flex",gap:5}}>
+                                <div style={{flex:1}}>
+                                  <div style={{fontSize:10,color:"#475569",marginBottom:3}}>Series</div>
+                                  <input type="number" value={ex[u].sets} onChange={e=>upField(r.id,ex.id,u,"sets",e.target.value)} style={{...inp(),width:"100%",textAlign:"center",padding:"7px 4px"}}/>
+                                </div>
+                                <div style={{flex:1}}>
+                                  <div style={{fontSize:10,color:"#475569",marginBottom:3}}>Reps</div>
+                                  <input type="text" value={ex[u].reps} onChange={e=>upField(r.id,ex.id,u,"reps",e.target.value)} placeholder="6-10" style={{...inp(),width:"100%",textAlign:"center",padding:"7px 4px"}}/>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{display:"flex",gap:8}}>
+                          <button onClick={()=>setEditEx(null)} style={{flex:1,background:"#3b82f6",border:"none",borderRadius:8,padding:"9px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Guardar</button>
+                          <button onClick={()=>removeEx(r.id,ex.id)} style={{background:"#ef444418",border:"1px solid #ef444444",borderRadius:8,padding:"9px 14px",color:"#ef4444",fontSize:13,cursor:"pointer"}}>Eliminar</button>
+                        </div>
+                      </div>
+                    ):(
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:500,fontSize:14,color:"#e2e8f0"}}>{ex.name}</div>
+                          <div style={{fontSize:12,color:"#475569",marginTop:3}}>
+                            <span style={{color:UC.Yago}}>Y</span> {ex.Yago.sets}×{ex.Yago.reps}&nbsp;&nbsp;
+                            <span style={{color:UC.Adri}}>A</span> {ex.Adri.sets}×{ex.Adri.reps}
+                            {ex.alt&&<span style={{marginLeft:8,color:"#334155",fontSize:11}}>{ex.alt}</span>}
+                          </div>
+                          {ex.muscles&&<div style={{fontSize:11,color:"#334155",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ex.muscles}</div>}
+                        </div>
+                        <div style={{display:"flex",gap:6,marginLeft:8,flexShrink:0}}>
+                          <button onClick={()=>onInfo(ex,"routines")} style={{background:"#0f172a",border:"1px solid #334155",borderRadius:8,width:32,height:32,color:"#475569",fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>ℹ</button>
+                          <button onClick={()=>setEditEx(ex.id)} style={{background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"6px 12px",color:"#94a3b8",fontSize:12,cursor:"pointer"}}>Editar</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {addingTo===r.id?(
+                  <div style={{padding:"12px 16px",display:"flex",gap:8}}>
+                    <input value={newExName} onChange={e=>setNewExName(e.target.value)} placeholder="Nombre del ejercicio" onKeyDown={e=>e.key==="Enter"&&addEx(r.id)} autoFocus style={{...inp(),flex:1,border:"1px solid #3b82f666"}}/>
+                    <button onClick={()=>addEx(r.id)} style={{background:"#3b82f6",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:16}}>+</button>
+                    <button onClick={()=>{setAddingTo(null);setNewExName("");}} style={{background:"#334155",border:"none",borderRadius:8,padding:"8px 12px",color:"#94a3b8",cursor:"pointer"}}>✕</button>
+                  </div>
+                ):(
+                  <button onClick={()=>setAddingTo(r.id)} style={{width:"100%",background:"none",border:"none",padding:"12px 16px",color:"#475569",fontSize:13,cursor:"pointer",textAlign:"left"}}>+ Añadir ejercicio</button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <DataManager routines={routines} sessions={sessions} onImport={onImport}/>
+    </div>
+  );
+}
+
+// ─── PROGRESS TAB ──────────────────────────────────────────────────────────
+function ProgressTab({sessions,routines}){
+  const[user,setUser]=useState("Yago");
+  const[selEx,setSelEx]=useState(null);
+  const[selRoutine,setSelRoutine]=useState("all");
+
+  const allExercises=useMemo(()=>{
+    const map={};
+    routines.forEach(r=>r.exercises.forEach(e=>{map[e.id]={...e,routineId:r.id,routineName:r.name,routineColor:r.color};}));
+    return Object.values(map);
+  },[routines]);
+
+  const filteredExercises=selRoutine==="all"?allExercises:allExercises.filter(e=>e.routineId===selRoutine);
+
+  const chartData=useMemo(()=>{
+    if(!selEx)return[];
+    return sessions
+      .filter(s=>s.logs?.[user]?.find(l=>l.exId===selEx&&l.weight!==''&&l.weight!=null&&!isNaN(parseFloat(l.weight))))
+      .sort((a,b)=>new Date(a.date)-new Date(b.date))
+      .map(s=>({date:s.date,weight:parseFloat(s.logs[user].find(l=>l.exId===selEx).weight)}))
+      .filter(d=>!isNaN(d.weight));
+  },[sessions,user,selEx]);
+
+  const exInfo=allExercises.find(e=>e.id===selEx);
+  const color=UC[user];
+
+  const stats=chartData.length>0?{
+    max:Math.max(...chartData.map(d=>d.weight)),
+    last:chartData[chartData.length-1]?.weight,
+    delta:chartData.length>1?(chartData[chartData.length-1].weight-chartData[0].weight):null,
+  }:null;
+
+  return(
+    <div style={{padding:"24px 16px"}}>
+      <h1 style={{fontSize:22,fontWeight:700,marginBottom:20,color:"#f1f5f9"}}>Progreso</h1>
+      <div style={{display:"flex",gap:8,marginBottom:20}}>
+        {USERS.map(u=><button key={u} onClick={()=>{setUser(u);setSelEx(null);}} style={{flex:1,padding:"11px",border:"none",borderRadius:12,background:user===u?UC[u]:"#1e293b",color:user===u?"#0f172a":"#475569",fontWeight:700,fontSize:15,cursor:"pointer"}}>{u}</button>)}
+      </div>
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:11,color:"#475569",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Filtrar por rutina</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          <button onClick={()=>setSelRoutine("all")} style={{padding:"6px 13px",border:`1px solid ${selRoutine==="all"?color:"#1e293b"}`,borderRadius:20,background:selRoutine==="all"?`${color}22`:"#1e293b",color:selRoutine==="all"?color:"#64748b",fontSize:12,cursor:"pointer"}}>Todos</button>
+          {routines.map(r=><button key={r.id} onClick={()=>setSelRoutine(r.id)} style={{padding:"6px 13px",border:`1px solid ${selRoutine===r.id?r.color:"#1e293b"}`,borderRadius:20,background:selRoutine===r.id?`${r.color}22`:"#1e293b",color:selRoutine===r.id?r.color:"#64748b",fontSize:12,cursor:"pointer"}}>{r.name}</button>)}
+        </div>
+      </div>
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:11,color:"#475569",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Ejercicio</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {filteredExercises.map(ex=><button key={ex.id} onClick={()=>setSelEx(ex.id===selEx?null:ex.id)} style={{padding:"8px 14px",border:`1px solid ${selEx===ex.id?color:"#1e293b"}`,borderRadius:20,background:selEx===ex.id?`${color}22`:"#1e293b",color:selEx===ex.id?color:"#64748b",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>{ex.name}</button>)}
+        </div>
+      </div>
+      {selEx?(
+        <div style={{background:"#1e293b",borderRadius:14,padding:16}}>
+          <div style={{fontWeight:700,fontSize:16,color:"#f1f5f9",marginBottom:2}}>{exInfo?.name}</div>
+          <div style={{fontSize:12,color:"#475569",marginBottom:16}}>{exInfo?.routineName} · {chartData.length} {chartData.length===1?"sesión":"sesiones"} con {user}</div>
+          <SparkChart data={chartData} color={color}/>
+          {stats&&chartData.length>=2&&(
+            <div style={{display:"flex",gap:8,marginTop:20}}>
+              {[
+                {label:"Máximo",value:`${stats.max}kg`},
+                {label:"Último",value:`${stats.last}kg`},
+                {label:"Ganado",value:stats.delta!=null?`${stats.delta>0?"+":""}${Math.round(stats.delta*10)/10}kg`:"—",color:stats.delta>0?"#4ade80":stats.delta<0?"#f87171":"#94a3b8"},
+              ].map(s=><div key={s.label} style={{flex:1,background:"#0f172a",borderRadius:10,padding:"12px 8px",textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:s.color||color}}>{s.value}</div><div style={{fontSize:10,color:"#475569",marginTop:3}}>{s.label}</div></div>)}
+            </div>
+          )}
+        </div>
+      ):(
+        <div style={{background:"#1e293b",borderRadius:14,padding:"36px 16px",textAlign:"center",color:"#475569"}}>
+          <div style={{fontSize:36,marginBottom:10}}>👆</div>
+          <div style={{fontSize:14}}>Selecciona un ejercicio para ver la evolución</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── APP ROOT ──────────────────────────────────────────────────────────────
+function App(){
+  const[tab,setTab]=useState("home");
+  const[routines,setRoutines]=useState(()=>load(SK.R,DEFAULT_ROUTINES));
+  const[sessions,setSessions]=useState(()=>load(SK.S,DEFAULT_SESSIONS));
+  const[workout,setWorkout]=useState(null);
+  const[infoModal,setInfoModal]=useState({ex:null,mode:"workout"});
+
+  const updateRoutines=r=>{setRoutines(r);persist(SK.R,r);};
+  const updateSessions=s=>{setSessions(s);persist(SK.S,s);};
+  const handleImport=(r,s)=>{updateRoutines(r);updateSessions(s);};
+
+  const startWorkout=routine=>{
+    const logs={};
+    USERS.forEach(user=>{
+      logs[user]=routine.exercises.map(ex=>({
+        exId:ex.id,
+        weight:getLastWeight(sessions,user,ex.id,routine.id)??'',
+        reps:ex[user].reps,sets:ex[user].sets,done:false,
+      }));
+    });
+    setWorkout({routineId:routine.id,routineName:routine.name,routineColor:routine.color,logs});
+    setTab("workout");
+  };
+
+  const finishWorkout=()=>{
+    const session={id:Date.now().toString(),date:new Date().toISOString(),routineId:workout.routineId,routineName:workout.routineName,logs:workout.logs};
+    updateSessions([session,...sessions]);
+    setWorkout(null);setTab("home");
+  };
+
+  const openInfo=(ex,mode)=>setInfoModal({ex,mode});
+  const closeInfo=()=>setInfoModal({ex:null,mode:"workout"});
+
+  return(
+    <div style={{background:"#0f172a",color:"#f1f5f9",minHeight:"100dvh",maxWidth:480,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
+      {infoModal.ex&&<InfoModal exercise={infoModal.ex} mode={infoModal.mode} onClose={closeInfo}/>}
+      <div style={{flex:1,overflowY:"auto",paddingBottom:80}}>
+        {tab==="home"&&<HomeTab routines={routines} sessions={sessions} onStart={startWorkout}/>}
+        {tab==="workout"&&<WorkoutTab workout={workout} routines={routines} setWorkout={setWorkout} onFinish={finishWorkout} onCancel={()=>{setWorkout(null);setTab("home");}} onInfo={openInfo}/>}
+        {tab==="routines"&&<RoutinesTab routines={routines} updateRoutines={updateRoutines} sessions={sessions} onImport={handleImport} onInfo={openInfo}/>}
+        {tab==="progress"&&<ProgressTab sessions={sessions} routines={routines}/>}
+      </div>
+      <BottomNav tab={tab} setTab={setTab} hasWorkout={!!workout}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
