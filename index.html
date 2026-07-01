@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Gym"/>
+  <meta name="theme-color" content="#0f172a"/>
+  <title>Gym · Yago & Adri</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="icon" href="icon-192.png"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <style>
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    body{margin:0;background:#0f172a;color:#f1f5f9;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;overscroll-behavior:none;}
+    input[type=number]{-moz-appearance:textfield;}
+    input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+    ::-webkit-scrollbar{width:0;height:0;}
+    button:active{opacity:.75;}
+    #fallback{display:none;padding:40px 20px;text-align:center;font-family:system-ui,sans-serif;}
+    #fallback a{color:#38bdf8;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<div id="fallback">
+  <h2>⚠️ No se ha podido cargar la app</h2>
+  <p>Revisa tu conexión a internet e inténtalo de nuevo. Si el problema persiste, comprueba la consola del navegador (menú ⋮ → Más herramientas → Herramientas de desarrollador → Console) para ver el error exacto.</p>
+</div>
+
+<!-- React y ReactDOM: versiones fijas, no "latest", para que esta app nunca vuelva a romperse por una actualización de una librería externa -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+
+<!-- app.js: JavaScript YA COMPILADO. No depende de ningún transpilador en el navegador. -->
+<script>
+  window.addEventListener('error', function(){
+    var root=document.getElementById('root');
+    if(!root || root.children.length===0){
+      document.getElementById('fallback').style.display='block';
+    }
+  });
+</script>
+<script src="app.js"></script>
+</body>
+</html>
