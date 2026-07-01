@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Recuperar datos · Gym</title>
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#0f172a;color:#f1f5f9;font-family:system-ui,-apple-system,sans-serif;padding:24px 16px 60px;max-width:480px;margin:0 auto;}
+  h1{font-size:20px;margin:0 0 4px;}
+  p{color:#94a3b8;font-size:14px;line-height:1.6;}
+  .card{background:#1e293b;border-radius:14px;padding:18px;margin:16px 0;}
+  .ok{color:#4ade80;}
+  .bad{color:#f87171;}
+  button{width:100%;background:#38bdf8;border:none;border-radius:10px;padding:16px;color:#0f172a;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;}
+  button.secondary{background:#334155;color:#f1f5f9;}
+  pre{background:#0f172a;border-radius:8px;padding:10px;font-size:11px;overflow-x:auto;color:#64748b;max-height:160px;}
+  .stat{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #0f172a88;}
+  .stat:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+  <h1>🔧 Recuperación de datos</h1>
+  <p>Esta página lee directamente lo que hay guardado en el navegador para este sitio, sin depender de React ni de ninguna librería externa. Funciona aunque la app principal esté rota.</p>
+
+  <div class="card" id="status"></div>
+
+  <button id="btnExport" style="display:none">⬇ Descargar backup (JSON)</button>
+  <button id="btnRaw" class="secondary" style="display:none">Ver datos en bruto</button>
+  <pre id="raw" style="display:none"></pre>
+
+  <script>
+    (function(){
+      var R_KEYS = ["gtr_r4"];   // clave de rutinas usada por la app
+      var S_KEYS = ["gtr_s4"];   // clave de sesiones usada por la app
+      var statusEl = document.getElementById('status');
+      var btnExport = document.getElementById('btnExport');
+      var btnRaw = document.getElementById('btnRaw');
+      var rawEl = document.getElementById('raw');
+
+      function tryParse(raw){
+        try{ return JSON.parse(raw); }catch(e){ return null; }
+      }
+
+      function findFirst(keys){
+        for(var i=0;i<keys.length;i++){
+          var v = localStorage.getItem(keys[i]);
+          if(v!=null) return {key:keys[i], value:v};
+        }
+        return null;
+      }
+
+      var rFound = findFirst(R_KEYS);
+      var sFound = findFirst(S_KEYS);
+
+      var routines = rFound ? tryParse(rFound.value) : null;
+      var sessions = sFound ? tryParse(sFound.value) : null;
+
+      var html = '';
+      if(sessions && Array.isArray(sessions)){
+        html += '<div class="stat"><span>Sesiones encontradas</span><span class="ok">'+sessions.length+' ✓</span></div>';
+      } else {
+        html += '<div class="stat"><span>Sesiones encontradas</span><span class="bad">0 (no hay datos)</span></div>';
+      }
+      if(routines && Array.isArray(routines)){
+        html += '<div class="stat"><span>Rutinas encontradas</span><span class="ok">'+routines.length+' ✓</span></div>';
+      } else {
+        html += '<div class="stat"><span>Rutinas encontradas</span><span class="bad">0 (no hay datos)</span></div>';
+      }
+      html += '<div class="stat"><span>Origen (localStorage de)</span><span style="color:#64748b;font-size:11px">'+location.origin+'</span></div>';
+      statusEl.innerHTML = html;
+
+      if((sessions && sessions.length) || (routines && routines.length)){
+        btnExport.style.display='block';
+        btnRaw.style.display='block';
+      } else {
+        var p = document.createElement('p');
+        p.innerHTML = 'No se ha encontrado ningún dato guardado en <b>'+location.origin+location.pathname.replace(/[^/]+$/,'')+'</b>.<br><br>Esto es normal si nunca abriste la app desde esta misma URL exacta, o si ya se perdieron. Si tienes un backup JSON antiguo, impórtalo directamente desde la app con el botón "Importar JSON" en la pestaña Rutinas.';
+        statusEl.parentNode.insertBefore(p, btnExport);
+      }
+
+      btnExport.onclick = function(){
+        var data = {
+          version: 2,
+          exported: new Date().toISOString(),
+          recoveredFrom: location.href,
+          routines: routines || [],
+          sessions: sessions || []
+        };
+        var blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'gym-backup-recuperado-'+new Date().toISOString().slice(0,10)+'.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      btnRaw.onclick = function(){
+        rawEl.style.display = rawEl.style.display==='none' ? 'block' : 'none';
+        rawEl.textContent = JSON.stringify({routines:routines, sessions:sessions}, null, 2);
+      };
+    })();
+  </script>
+</body>
+</html>
